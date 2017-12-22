@@ -37,7 +37,7 @@ belongs to.
 """
 type Param
     index::Integer
-    Param(w; ctx::ParamCtx=active_ctx()) = Param(length(push!(ctx, w)))
+    Param(w; ctx::ParamCtx=active_ctx()) = new(length(push!(ctx, w)))
 end
 
 
