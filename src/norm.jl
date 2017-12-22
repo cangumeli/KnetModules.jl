@@ -41,7 +41,7 @@ function BatchNorm(input::Int;
                    dtype=Float32,
                    moments=bnmoments(),
                    o...)
-    w = Param(bnparam(dtype, input))
+    w = Param(bnparams(dtype, input))
     return BatchNorm(w, moments, o, train)
 end
 
