@@ -6,11 +6,11 @@ import KnetModules.forward
 Declare a simple cnn model.
 =#
 type MyCNN <: KnetModule
-    c1::Conv;  b1::BatchNorm
-    c2::Conv;  b2::BatchNorm
-    c3::Conv;  b3::BatchNorm
-    h::Linear; bh::BatchNorm
-    out::Linear
+    c1::Conv;    bc1::BatchNorm
+    c2::Conv;    bc2::BatchNorm
+    c3::Conv;    bc3::BatchNorm
+    fc1::Linear; bfc1::BatchNorm
+    fc2::Linear
 end
 
 MyCNN(;chs=[16,32,64], hsize=100, nclasses=10) = MyCNN(
@@ -21,14 +21,14 @@ MyCNN(;chs=[16,32,64], hsize=100, nclasses=10) = MyCNN(
     Linear(10, hsize)
 )
 
+# Forward pass executes a regular julia code
 function forward(ctx, m::MyCNN, x)
-    x = pool(relu.(@mc m.b1(@mc m.c1(x))))
-    x = pool(relu.(@mc m.b2(@mc m.c2(x))))
-    x = relu.(@mc m.b3(@mc m.c2(x)))
-    x = relu.(@mc m.bh(@mc m.h(x)))
-    return @mc m.out(x)
+    x = pool(relu.(@mc m.bc1(@mc m.c1(x))))
+    x = pool(relu.(@mc m.bc2(@mc m.c2(x))))
+    x = relu.(@mc m.bc3(@mc m.c3(x)))
+    x = relu.(@mc m.bfc1(@mc m.fc1(x)))
+    return @mc m.fc2(x)
 end
-
 
 # Load the data
 include(Pkg.dir("Knet", "data", "cifar.jl"))
@@ -41,17 +41,18 @@ function loaddata()
     return (xtrn, ytrn), (xtst, ytst)
 end
 
+const atype = gpu() >= 0 ? KnetArray : Array
 
 # Perform training
 function epoch!(model, gradfn, dtrn, optims;  mbatch=64)
     data = minibatch(dtrn[1], dtrn[2], mbatch;
                      shuffle=true,
-                     xtype=atype())
+                     xtype=atype)
     
     for (x, y) in data
-        # Note the gradfn call
-        g = gradfn(x, y)
-        update!(model, g, optims)
+        # Note the gradfn call just needs data
+        grads = gradfn(x, y)
+        update!(model, grads, optims)
     end
 end
 
@@ -59,7 +60,8 @@ end
 function acc(model, xtst, ytst; mbatch=64)
     data = minibatch(xtst, ytst, mbatch;
                      partial=true,
-                     xtype=atype())
+                     xtype=atype)
+    # Accuracy can directly take model and data
     return accuracy(model, data; average=true)
 end
 
@@ -72,9 +74,10 @@ function report(epoch, model, dtrn, dtst)
 end
 
 
-function train(;epochs=10)
+function train(;epochs=5)
     dtrn, dtst = loaddata()
     model = MyCNN()
+    gpu!(model) # ignored if cpu
     gradfn = grad(model, nll)
     optims = optimizers(model, Momentum; lr=.1)
     for i = 1:epochs
