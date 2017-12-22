@@ -46,7 +46,7 @@ end
 ctx. 
 This function should be used used to access parameters for AutoGrad to work.
 """
-val(ctx::ParamCtx, p::Union{Param, Void}) = (p==nothing) ? nothing : ctx[p.index]
+val(ctx::ParamCtx, p::Union{Param, Void}) = ctx[p.index]
 
 
 """
