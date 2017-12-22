@@ -9,9 +9,11 @@ const ParamCtx = Array{Any, 1}
 # The context abstraction
 
 let
+    global active_ctx, switch_ctx!, default_ctx, reset_ctx!
+    
     default = []
     active = default
-
+    
     """`active_ctx()::ParamCtx` returns the context in use"""
     active_ctx()::ParamCtx = active
 
