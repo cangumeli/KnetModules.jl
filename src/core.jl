@@ -24,7 +24,7 @@ let
     default_ctx()::ParamCtx = default
 
     """`reset_ctx!()::ParamCtx` removes everything from the context"""
-    reset_ctx!() = (active=ParamCxt())
+    reset_ctx!()::ParamCtx = (active=ParamCxt())
 end
 
 """`Param` stores an address to the parameters value.
@@ -207,7 +207,7 @@ end
 
 
 """
-`training!(m::KnetModule)` makes the fields called `train` true if exists, 
+`testing!(m::KnetModule)` makes the fields called `train` `false` if exists, 
 which may effect the execution mode in some modules.
 """
 function testing!(m::KnetModule)

@@ -16,5 +16,5 @@ nll(model::KnetModule, data::MB; o...) =
 wrapper over `Knet.accuracy`.
 """
 accuracy(model::KnetModule, data::MB; o...) =
-    accuracy(model, data, (m, x)->(@run m(x)))
+    accuracy(model, data, (m, x)->(@run m(x)); o...)
 
