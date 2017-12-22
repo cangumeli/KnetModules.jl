@@ -24,7 +24,7 @@ let
     default_ctx()::ParamCtx = default
 
     """`reset_ctx!()::ParamCtx` removes everything from the context"""
-    reset_ctx!()::ParamCtx = (active=ParamCxt())
+    reset_ctx!()::ParamCtx = (active=ParamCtx())
 end
 
 """`Param` stores an address to the parameters value.
@@ -42,11 +42,11 @@ end
 
 
 """
-`val(ctx::ParamCtx, p::Union{Param, Void})` returns the value of parameter in
+`val(ctx, p::Union{Param, Void})` returns the value of parameter in
 ctx. 
 This function should be used used to access parameters for AutoGrad to work.
 """
-val(ctx::ParamCtx, p::Union{Param, Void}) = ctx[p.index]
+val(ctx, p::Union{Param, Void}) = ctx[p.index]
 
 
 """
@@ -94,9 +94,12 @@ getgrad(p::Param, grads) = grads[p.index]
 
 import Knet.optimizers
 
-"""`optimizers(m::KnetModule, ofn::Function)` creates a group of optimizers. 
-`ofn` should be of the form ofn(p), where o is a parameter."""
-optimizers(m::KnetModule, ofn::Function) = map(p->ofn(p), params(m))
+"""`optimizers(m::KnetModule, otype; sorted=true, o...)` creates a group of optimizers. 
+otype specifies a Knet optimizer and `o...` is its options. `sorted` is a boolean
+passed to the params.
+"""
+optimizers(m::KnetModule, otype; sorted=true, o...) =
+    map(_->otype(;o...), params(m; sorted=sorted))
 
 
 import Knet.update!

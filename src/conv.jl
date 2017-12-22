@@ -67,7 +67,7 @@ function forward(ctx, c::Conv, x)
               mode=conv_mode(),
               c.opt...)
     if c.b !== nothing
-        o .+ val(ctx, c.b)
+        o = o .+ val(ctx, c.b)
     end
     return o
 end
