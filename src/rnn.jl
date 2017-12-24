@@ -16,9 +16,10 @@ for (RNNModule, rnnType) in zip([:RNNRelu, :RNNTanh, :LSTM, :GRU],
       end
            
       function $(RNNModule)(input::Int, hidden::Int;
-                          y=true,
-                          o...)
+                            y=true,
+                            o...)
            r, w = rnninit(input, hidden; o..., rnnType=$(rnnType))
+           o = filter(x->!isa(x[2], Function), o)
            return $(RNNModule)(Param(w), r, y, o)
       end
      end))

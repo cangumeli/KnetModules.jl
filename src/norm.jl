@@ -21,7 +21,8 @@ abstract type AbstractNorm <: KnetModule end
     `train=nothing`       Training mode, see `batchnorm`
     `dtype=Float32`       Element type of affine params
     `moments=bnmoments()` Struture stored running mean and var, nullable
-    `opt...`              See `batchnorm` kwargs
+    `remove_initfns=true` If true, function fields in moments are removed after being used once
+    `opt...`              See `Knet.batchnorm` kwargs
 
 # Forward execution
     `forward(ctx, bn::BatchNorm, x)`
@@ -33,6 +34,7 @@ type BatchNorm <: AbstractNorm
     moments::Union{Void, BNMoments}
     opt
     train::Union{Void, Bool}
+    remove_initfns::Bool
 end
 
 function BatchNorm(input::Int;
@@ -40,12 +42,18 @@ function BatchNorm(input::Int;
                    train=nothing, #default option
                    dtype=Float32,
                    moments=bnmoments(),
+                   remove_initfns=true, #serialization hack (should go to Knet?)
                    o...)
     w = Param(bnparams(dtype, input))
-    return BatchNorm(w, moments, o, train)
+    return BatchNorm(w, moments, o, train, remove_initfns)
 end
 
-forward(ctx, bn::BatchNorm, x) = 
-    batchnorm(x, bn.moments, val(ctx, bn.w);
-              bn.opt...,
-              training=bn.train)
+function forward(ctx, bn::BatchNorm, x)
+    o = batchnorm(x, bn.moments, val(ctx, bn.w);
+                  bn.opt..., training=bn.train)
+    if bn.remove_initfns
+        bn.moments.meaninit = nothing
+        bn.moments.varinit  = nothing
+    end
+    return o
+end

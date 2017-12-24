@@ -11,7 +11,8 @@ export
     # KnetModule
     KnetModule, getgrad, params, submodules,
     gpu!, cpu!, training!, testing!,
-    forward, @mc, @run
+    forward, @mc, @run,
+    save_module, load_module, restore_module!
 
 
 include("linear.jl")

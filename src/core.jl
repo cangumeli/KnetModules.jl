@@ -260,3 +260,101 @@ end
 forward(ctx, m::KnetModule, args...) =
     error("Forward is not implemented for abstract types ",
           "and/or type ", typeof(m))
+
+
+function ctx_dict(m::KnetModule)
+    cd = Dict()
+    for p in params(m)
+        cd[p.index] = aval(p)
+    end
+    return cd
+end
+
+# This thing is used with a loaded (not initialized) Knet
+# module.
+function from_ctx_dict!(m::KnetModule, cd::Dict; ctx=nothing)::ParamCtx
+    if ctx == nothing; ctx = ParamCtx(); end
+    for p in params(m)
+        # FIXME: try not to break the abstraction
+        p.index = length(push!(ctx, cd[p.index]))
+    end
+    return ctx
+end
+
+
+if Pkg.installed("JLD") !== nothing
+    import JLD
+else
+    JLD = nothing
+end
+
+@inline assert_jld() =
+    @assert (JLD !== nothing) "Install JLD for using this function"
+
+function save_module(filename::String, m::KnetModule)
+    assert_jld()
+    JLD.save(filename, "model", m, "ctx_dict", ctx_dict(m))
+end
+
+function load_module(filename::String; ctx_switch=false)
+    assert_jld()
+    loaded = JLD.load(filename)
+    model = loaded["model"]
+    cdict = loaded["ctx_dict"]
+    if ctx_switch
+        switch_ctx!(from_ctx_dict!(model, cdict))
+    else
+        from_ctx_dict!(model, cdict; ctx=active_ctx())
+    end
+    return model
+end
+
+# assumes indices are consistent, to be used during training
+function restore_module!(filename::String, target::KnetModule)
+    assert_jld()
+    cdict = JLD.load(filename)["ctx_dict"]
+    for p in params(target)
+        copy!(aval(p), cdict[p.index])
+    end
+end
+
+#=let JLD=nothing
+    global jld
+    jld() = JLD==nothing && (JLD = Pkg.installed("JLD") !== nothing) || JLD
+end=#
+
+
+#="""
+`new_cxt!(m::KnetModule; old_dict=true)` creates a new context, 
+copy the model to that context and returns the created context. 
+
+You should use `switch_ctx!(new_ctx!(model))` to continue
+using the model properly, otherwise old ctx will be in use.
+
+If `old_dict=true`, a dictionary maps old indices to new
+ones is returned.
+"""
+function new_ctx!(m::KnetModule; old_dict=true)
+    ctx = ParamCtx()
+    dict = old_dict ? Dict() : nothing
+    for p in params(m)
+        ind = length(push!(ctx, aval(p)))
+        if old_dict
+            dict[p.index] = ind
+        end
+        p.index = ind
+    end
+    return old_dict ? ctx : (ctx, old_dict)
+end
+
+
+"""
+`is_ctx_clean(m::KnetModules)::Bool` returns
+whether or not the whole `active_ctx()` is
+covered by the model m.
+"""
+function is_ctx_clean(m::KnetModule)
+    ps = Set{Int}(map(x->x.index, params(m)))
+    as = Set{Int}(1:length(active_ctx()))
+    return length(setdiff(ps,as)) == 1
+end=#
