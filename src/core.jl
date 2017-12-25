@@ -106,11 +106,11 @@ getgrad(p::Param, grads) = grads[p.index]
 
 import Knet.optimizers
 
-"""`optimizers(m::KnetModule, otype; sorted=true, o...)` creates a group of optimizers. 
+"""`optimizers(m::KnetModule, otype; sorted=false, o...)` creates a group of optimizers. 
 otype specifies a Knet optimizer and `o...` is its options. `sorted` is a boolean
 passed to the params.
 """
-optimizers(m::KnetModule, otype; sorted=true, o...) =
+optimizers(m::KnetModule, otype; sorted=false, o...) =
     map(_->otype(;o...), params(m; sorted=sorted))
 
 
@@ -131,7 +131,7 @@ function _populate_recursive(m, list, match_type)
     if isa(m, match_type)
         push!(list, m)
     end
-    
+    # Sort is for deterministic behavior
     if isa(m, KnetModule)
         for fn in sort(fieldnames(m))
             _populate_recursive(getfield(m, fn), list, match_type)
@@ -157,7 +157,7 @@ dictionaries, arrays and tuples.
 
 # Keywords
 
-   `sorted=true`: If true, parameters are returned sorted based on
+   `sorted=false`: If true, parameters are returned sorted based on
 their locations in the context
 """
 function params(m::KnetModule; sorted=false)
@@ -203,7 +203,7 @@ end
 which is identical to converting their values to `Array`"""
 function cpu!(m::KnetModule)
     for p in params(m)
-        setval!(p; Array(aval(p)))
+        setval!(p, Array(aval(p)))
     end
 end
 
@@ -273,6 +273,30 @@ forward(ctx, m::KnetModule, args...) =
     error("Forward is not implemented for abstract types ",
           "and/or type ", typeof(m))
 
+
+"""
+`switch_clean_ctx!(m::KnetModule; reset_old=true, clone=false)` 
+Switches to a new ctx where only `m` lives.
+If `reset_old` is `true`, old ctx is cleaned up for saving memory. 
+If `clone` is `true`, the buffers are copied.
+"""
+function switch_clean_ctx!(m::KnetModule; reset_old=true, clone=false)
+    new = ParamCtx()
+    for p in params(m; sorted=true)
+        p.index = length(push!(new, aval(p)))
+    end
+    if reset_old
+        reset_ctx!()
+    end
+    switch_ctx!(new)
+end
+
+
+function is_ctx_clean(m::KnetModule)
+    ps = Set{Int}(map(x->x.index, params(m)))
+    as = Set{Int}(1:length(active_ctx()))
+    return length(setdiff(as,ps)) == 0
+end
 
 function ctx_dict(m::KnetModule)
     cd = Dict()

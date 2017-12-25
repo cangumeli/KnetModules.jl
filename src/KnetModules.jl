@@ -12,6 +12,7 @@ export
     KnetModule, getgrad, params, submodules,
     gpu!, cpu!, training!, testing!,
     forward, @mc, @run,
+    switch_clean_ctx!, is_ctx_clean,
     save_module, load_module, restore_module!
 
 
@@ -28,7 +29,7 @@ export AbstractNorm, BatchNorm
 
 
 include("container.jl")
-export KnetContainer, Sequential
+export KnetContainer, Sequential, add!
 
 
 include("func.jl")
