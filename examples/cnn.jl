@@ -21,7 +21,8 @@ MyCNN(;chs=[16,32,64], hsize=100, nclasses=10) = MyCNN(
     Linear(10, hsize)
 )
 
-# Forward pass executes a regular julia code
+# Forward pass executes a regular julia code with macros, functions
+# and program control if necessary
 function forward(ctx, m::MyCNN, x)
     x = pool(relu.(@mc m.bc1(@mc m.c1(x))))
     x = pool(relu.(@mc m.bc2(@mc m.c2(x))))
@@ -70,19 +71,32 @@ function report(epoch, model, dtrn, dtst)
     println("epoch: ", epoch)
     println("training accuracy ", acc(model, dtrn...))
     println("test accuracy ",     acc(model, dtst...))
-    println()
 end
 
 
-function train(;epochs=5)
+function train(;epochs=5,
+               checkpoint_filename="cnn_train",
+               start_epoch=0,
+               from_checkpoint=false)
     dtrn, dtst = loaddata()
-    model = MyCNN()
-    gpu!(model) # ignored if cpu
+    jld_file(epoch) = string(checkpoint_filename, "_epoch_",
+                             epoch, ".jld")
+    #model = MyCNN()
+    if from_checkpoint && start_epoch > 0
+        # ctx switch -> clean up the old model contents
+        model = load_module(jld_file(start_epoch); ctx_switch=true)
+    else
+        model = MyCNN()
+    end
+    gpu!(model) # ignored if gpu id is -1
     gradfn = grad(model, nll)
     optims = optimizers(model, Momentum; lr=.1)
     for i = 1:epochs
         epoch!(model, gradfn, dtrn, optims)
         report(i, model, dtrn, dtst)
+        info("Backing up model...")
+        save_module(jld_file(start_epoch+i), model)
+        println()
     end
     return model
 end
