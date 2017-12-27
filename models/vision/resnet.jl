@@ -49,10 +49,9 @@ function BasicBlock(input::Int, output::Int;
     return BasicBlock(conv1, bn1, conv2, bn2, downsample)
 end
 
-function forward(ctx, b::BasicBlock;
-                 stridde=1, downsample=nothing)
+function forward(ctx, b::BasicBlock, x)
     o = relu.(@mc b.bn1(@mc b.conv1(x)))
-    o = relu.(@mc b.bn2(@mc b.conv2(o)))
+    o = @mc b.bn2(@mc b.conv2(o))
     if b.downsample !== nothing
         x = @mc b.downsample(x)
     end
@@ -100,7 +99,7 @@ end
 function forward(ctx, b::Bottleneck, x)
     o = relu.(@mc b.bn1(@mc b.conv1(x)))
     o = relu.(@mc b.bn2(@mc b.conv2(o)))
-    o = relu.(@mc b.bn3(@mc b.conv3(o)))
+    o = @mc b.bn3(@mc b.conv3(o))
     if b.downsample !== nothing
         x = @mc b.downsample(x)
     end
@@ -179,7 +178,7 @@ function forward(ctx, r::ResNet, x)
         o = relu.(@mc r.bn1(@mc r.conv1(x)))
     else
         o = pool(relu.(@mc r.bn1(@mc r.conv1(x)));
-                 window=3, stride=2)
+                 window=3, stride=2, padding=Int(stride3()))
     end
     # residual blocks
     for (i,l) in enumerate(r.layers)
