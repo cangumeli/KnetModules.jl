@@ -21,7 +21,7 @@ export Linear
 
 
 include("conv.jl")
-export Conv, kaiming, conv_mode, mode_conv!, mode_cross!
+export Conv, kaiming, conv_mode! #conv_mode, mode_conv!, mode_cross!
 
 
 include("norm.jl")

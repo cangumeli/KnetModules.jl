@@ -1,15 +1,14 @@
-let #convolution config
-    mode = 0
-    global mode_cross!, mode_conv!, conv_mode
-    
-    """Returns mode of convolution (1 cross, 0 conv)"""
-    conv_mode() = mode
-
-    """Swithces cross correlation mode in all convs"""
-    mode_cross!() = (mode=1)
-
-    """Swithces convolution mode in all convs"""
-    mode_conv!() = (mode=0)
+"""
+`conv_mode!(m::KnetModule, mode::Int)` sets all convolutions
+to `mode=mode` in a module.
+"""
+function conv_mode!(m::KnetModule, mode::Int)
+    for m in submodules(m)
+        if isa(m, Conv)
+            m.opt = filter(x->x[1]!==:mode, m.opt)
+            push!(m.opt, (:mode, mode))
+        end
+    end
 end
 
 
@@ -64,7 +63,6 @@ end
 
 function forward(ctx, c::Conv, x)
     o = conv4(val(ctx, c.w), x;
-              mode=conv_mode(),
               c.opt...)
     if c.b !== nothing
         o = o .+ val(ctx, c.b)
