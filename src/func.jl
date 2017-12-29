@@ -34,13 +34,18 @@ end
 
 AvgPool(;include_pad=true, o...) = AvgPool(o, include_pad)
 
-forward(ctx, m::AvgPool, x) = pool(x; m.opt..., mode=1+Int(m.include_pad))
+forward(ctx, m::AvgPool, x) =
+    pool(x; m.opt..., mode=1+Int(m.include_pad))
 
 
 # Dropout
 type Dropout <: FnModule
     p::AbstractFloat
+    train::Union{Bool, Void}
 end
 
-forward(ctx, d::Dropout, x) = dropout(x, d.p)
+Dropout(pdrop; train=nothing) = Dropout(p, train)
+
+forward(ctx, d::Dropout, x) =
+    isa(d.train, Bool) ? dropout(x, d.p; training=d.train) : dropout(x, d.p)
 
