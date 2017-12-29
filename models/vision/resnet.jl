@@ -163,10 +163,11 @@ function ResNetCifar(depth::Int; nclasses=10)
     conv1 = Conv(3, 3, 3, 16; bias=false, padding=1)
     bn1 = BatchNorm(16)
     n = Int((depth-2)/3)
+    rep = div(n, 2)
     layers = [
-        _make_layer(BasicBlock, 16, 16, n),
-        _make_layer(BasicBlock, 16, 32, n; stride=2),
-        _make_layer(BasicBlock, 32, 64, n; stride=2),
+        _make_layer(BasicBlock, 16, 16, rep),
+        _make_layer(BasicBlock, 16, 32, rep; stride=2),
+        _make_layer(BasicBlock, 32, 64, rep; stride=2),
     ]
     output = Linear(nclasses, 64)
     return ResNet(conv1, bn1, layers, output, :cifar, true)
