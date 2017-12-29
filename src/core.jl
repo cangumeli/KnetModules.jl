@@ -194,11 +194,12 @@ any error thrown.
 function gpu!(m::KnetModule)
     if gpu() < 0
         warn("Gpu transfer is ignored, no available gpu")
-        return
+        return m
     end
     for p in params(m)
         setval!(p, KnetArray(aval(p)))
     end
+    return m
 end
 
 
@@ -208,6 +209,7 @@ function cpu!(m::KnetModule)
     for p in params(m)
         setval!(p, Array(aval(p)))
     end
+    return m
 end
 
 
@@ -225,6 +227,7 @@ function training!(m::KnetModule)
             p.take_grad = true
         end
     end
+    return m
 end
 
 
@@ -243,6 +246,7 @@ function testing!(m::KnetModule)
             p.take_grad = false
         end
     end
+    return m
 end
 
 # Macros for simple module operations
@@ -300,6 +304,7 @@ function switch_clean_ctx!(m::KnetModule; reset_old=true, clone=false)
         reset_ctx!()
     end
     switch_ctx!(new)
+    return m
 end
 
 
