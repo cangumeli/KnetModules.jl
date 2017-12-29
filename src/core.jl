@@ -37,7 +37,9 @@ belongs to.
 """
 type Param
     index::Integer
-    Param(w; ctx::ParamCtx=active_ctx()) = new(length(push!(ctx, w)))
+    take_grad::Bool
+    Param(w; ctx::ParamCtx=active_ctx(), take_grad=true) =
+        new(length(push!(ctx, w)), take_grad)
 end
 
 
@@ -46,7 +48,8 @@ end
 ctx. 
 This function should be used used to access parameters for AutoGrad to work.
 """
-val(ctx, p::Union{Param, Void}) = ctx[p.index]
+val(ctx, p::Union{Param, Void}) =
+    p.take_grad ? ctx[p.index] : getval(ctx[p.index])
 
 
 """
@@ -210,12 +213,16 @@ end
 
 """
 `training!(m::KnetModule)` makes the fields called `train` true if exists, 
-which may effect the execution mode in some modules.
+which may effect the execution mode in some modules. It also make `take_grad`
+field of parameters true, which make them included in the training process.
 """
 function training!(m::KnetModule)
     for sm in submodules(m)
         if :train in fieldnames(m)
             m.train = true
+        end
+        for p in params(sm)
+            p.take_grad = true
         end
     end
 end
@@ -223,16 +230,20 @@ end
 
 """
 `testing!(m::KnetModule)` makes the fields called `train` `false` if exists, 
-which may effect the execution mode in some modules.
+and freezes the parameters so that gradient is not taken w.r.t them. This
+is done by unrecording the variables during training, so that particular modules`
+weights can be treated as constants by the AutoGrad. 
 """
 function testing!(m::KnetModule)
     for sm in submodules(m)
         if :train in fieldnames(m)
             m.train = false
         end
+        for p in params(m)
+            p.take_grad = false
+        end
     end
 end
-
 
 # Macros for simple module operations
 # TODO: support kwargs
@@ -327,9 +338,14 @@ end
 @inline assert_jld() =
     @assert (JLD !== nothing) "Install JLD for using this function"
 
-function save_module(filename::String, m::KnetModule)
+function save_module(filename::String, m::KnetModule,
+                     other_state::Dict=Dict())
     assert_jld()
-    JLD.save(filename, "model", m, "ctx_dict", ctx_dict(m))
+    args = ["model", m, "ctx_dict", ctx_dict(m)]
+    for k in keys(other_state)
+        push!(args, k, other_state[k])
+    end
+    JLD.save(filename, args...)
 end
 
 function load_module(filename::String; ctx_switch=false)
@@ -342,14 +358,20 @@ function load_module(filename::String; ctx_switch=false)
     else
         from_ctx_dict!(model, cdict; ctx=active_ctx())
     end
+    if length(loaded) > 2
+        other_state = loaded
+        delete!(other_state, "model")
+        delete!(other_state, "ctx_dict")
+        return model, other_state
+    end
     return model
 end
 
 # assumes indices are consistent, to be used during training
-function restore_module!(filename::String, target::KnetModule)
+#=function restore_module!(filename::String, target::KnetModule)
     assert_jld()
     cdict = JLD.load(filename)["ctx_dict"]
     for p in params(target)
         copy!(aval(p), cdict[p.index])
     end
-end
+end=#
