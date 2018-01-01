@@ -1,73 +1,55 @@
 """Abstract type generalizes the embedding modules"""
-abstract type AbstractEmbedding <: KnetModule end
+abstract type Embedding <: KnetModule end
 
 
 """
-`Embedding`: Basic linear embedding layer.
+`EmbeddingMul`: Basic linear embedding layer using matrix multiplication
+for embedding.
 
 # Constructors
-    `Embedding(esize::Int, vsize::Int; train)`
+    `EmbeddingMul(esize::Int, vsize::Int; winit)`
     esize is the embedding size, 
     vsize is the vocabulary size
-    
-    `Embedding(w; train)`
-    Create embedding from an existing buffer.
-
-train is a boolean, determines whether or not to train the embedding
 
 # Fields
     `l::Linear`: Linear embedding operator.
-    `train::Bool`: Determines whether or not to train embedding
 
 # Forward execution
-    `forward(ctx, e::Embedding, seq)
+    `forward(ctx, e::EmbeddingMul, seq)
     `@mc e(x)`
     `@run e(x)`
 
-`seq` can be a tupple of `(x, metadata)` or an array `x`.
-If `x` is 2d, `(size, batchsize, time)` is assumed.
+If `x` is 3d, `(size, batchsize, time)` is assumed.
     
 """
-type Embedding <: AbstractEmbedding
+type EmbeddingMul <: Embedding
     l::Linear
-    train::Bool
 end
 
-Embedding(esize::Int, vsize::Int; train=true) =
-    Embedding(Linear(esize,vsize; bias=false), train)
+EmbeddingMul(esize::Int, vsize::Int; winit=randn, dtype=Float32) =
+    EmbeddingMul(Linear(esize, vsize;
+                        winit=winit, dtype=Float32, bias=false))
 
-function Embedding(w; train=false)
-    l = Linear(size(w)...; bias=false)
-    copy!(aval(l.w), w)
-    return Embedding(l, train)
-end
-    
-
-function forward(ctx, e::Embedding, seq)
-    x, bs = isa(seq, Tuple) ? seq : (seq, nothing)
+function forward(ctx, e::EmbeddingMul, x)
     if ndims(x) == 3
         dims = size(x, 2, 3)
-        x = (reshape(x, size(x,1), size(x, 2) * size(x, 3)))
+        x = reshape(x, size(x,1), size(x, 2) * size(x, 3))
     else
         dims = size(x, 2)
     end
-    emb = e.train ? (@mc e.l(x)) : (@run e.l(x))
-    y = reshape(emb, (size(x,1), dims...))
-    return bs == nothing ? y : (y, bs)
+    emb = @mc e.l(x)
+    return reshape(emb, (size(emb,1), dims...))
 end
 
 
 
 """
-`Embedding`: Basic linear embedding layer.
+`EmbeddingLookup`: Basic linear embedding layer using index access.
 
 # Constructors
     `EmbeddingLookup(esize::Int, vsize::Int; train)`
     esize is the embedding size, 
     vsize is the vocabulary size
-    
-    `EmbeddingLookup(w; train)`
-    Create embedding from an existing buffer.
 
 train is a boolean, determines whether or not to train the embedding
 
@@ -76,28 +58,25 @@ train is a boolean, determines whether or not to train the embedding
     
 
 # Forward execution
-    `forward(ctx, e::Embedding, indices::Array{Int,1})
+    `forward(ctx, e::EmbeddingLookup, indices::Array{Int,1})
     `@mc e(indices)`
     `@run e(indices)`
-
-`seq` can be a tupple of `(x, metadata)` or an array `x`.
-If `x` is 2d, `(size, batchsize, time)` is assumed.
     
 """
-type EmbeddingLookup <: AbstractEmbedding
-    w
-    train
+type EmbeddingLookup <: Embedding
+    w::Param
 end
 
-EmbeddingLookup(w; train=true) =
-    EmbeddingLookup(Param(w), train)
-
-EmbeddingLookup(emb::Int, vocab::Int; dtype=Float32, train=true) =
-    EmbeddingLookup(xavier(dtype, emb, vocab), train)
+EmbeddingLookup(emb::Int, vocab::Int; dtype=Float32, winit=randn) =
+    EmbeddingLookup(Param(winit(dtype, emb, vocab)))
 
 
-function forward(ctx, el::EmbeddingLookup, indices::Array{Int, 1})
-    w = el.train ? val(ctx, el.w) : aval(el.w)
-    return w[:, indices]
+function forward(ctx, el::EmbeddingLookup, indices::Array{Int})
+    w = val(ctx, el.w)
+    emb = w[:, indices[:]]
+    if ndims(indices) > 1
+        emb = reshape(emb, (size(emb, 1), size(indices)...))
+    end
+    return emb
 end
 

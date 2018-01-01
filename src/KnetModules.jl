@@ -9,11 +9,11 @@ export
     # Param
     Param, aval, val, setval!,
     # KnetModule
-    KnetModule, getgrad, params, submodules,
+    KnetModule, getgrad, params, modules,
     gpu!, cpu!, training!, testing!,
     forward, @mc, @run,
     switch_clean_ctx!, is_ctx_clean,
-    save_module, load_module, restore_module!
+    save_module, load_module
 
 
 include("linear.jl")
@@ -21,11 +21,11 @@ export Linear
 
 
 include("conv.jl")
-export Conv, kaiming, conv_mode! #conv_mode, mode_conv!, mode_cross!
+export Conv, kaiming, conv_mode!
 
 
 include("norm.jl")
-export AbstractNorm, BatchNorm
+export Norm, BatchNorm
 
 
 include("container.jl")
@@ -45,7 +45,7 @@ export AbstractRNN, RNNTanh, RNNRelu, LSTM, GRU
 
 
 include("embedding.jl")
-export AbstractEmbedding, Embedding, EmbeddingLookup
+export Embedding, EmbeddingMul, EmbeddingLookup
 
 
 include("data.jl")

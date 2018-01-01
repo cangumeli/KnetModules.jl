@@ -1,7 +1,7 @@
 using Knet: BNMoments
 
 """Abstract type for normalization layers"""
-abstract type AbstractNorm <: KnetModule end
+abstract type Norm <: KnetModule end
 
 
 """
@@ -29,7 +29,7 @@ abstract type AbstractNorm <: KnetModule end
     `@mc bn(x)`
     `@run bn(x)
 """
-type BatchNorm <: AbstractNorm
+type BatchNorm <: Norm
     w::Union{Void, Param}
     moments::Union{Void, BNMoments}
     opt

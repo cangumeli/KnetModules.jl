@@ -11,7 +11,7 @@ const ParamCtx = Array{Any, 1}
 let
     global active_ctx, switch_ctx!, default_ctx, reset_ctx!
     
-    default = []
+    default = ParamCtx()
     active = default
     
     """`active_ctx()::ParamCtx` returns the context in use"""
@@ -84,7 +84,7 @@ function grad(m::KnetModule, loss::Function)
     _predict(w, x...) = forward(w, m, x...)
     _loss(w, args...) = loss(_predict(w, args[1:end-1]...), args[end])
     lossgrad = grad(_loss)
-    return (args...)->lossgrad(active_ctx(), args[1:end-1]..., args[end])
+    return (args...)->lossgrad(active_ctx(), args...)
 end
 
 import AutoGrad.gradloss
@@ -96,7 +96,7 @@ function gradloss(m::KnetModule, loss::Function)
     _predict(w, x...) = forward(w, m, x...)
     _loss(w, args...) = loss(_predict(w, args[1:end-1]...), args[end])
     lossgrad = gradloss(_loss)
-    return (args...)->lossgrad(active_ctx(), args[1:end-1]..., args[end])
+    return (args...)->lossgrad(active_ctx(), args...)
 end
 
 """
@@ -109,12 +109,12 @@ getgrad(p::Param, grads) = grads[p.index]
 
 import Knet.optimizers
 
-"""`optimizers(m::KnetModule, otype; sorted=false, o...)` creates a group of optimizers. 
+"""`optimizers(m::KnetModule, otype;o...)` creates a group of optimizers. 
 otype specifies a Knet optimizer and `o...` is its options. `sorted` is a boolean
 passed to the params.
 """
-optimizers(m::KnetModule, otype; sorted=false, o...) =
-    map(_->otype(;o...), params(m; sorted=sorted))
+optimizers(m::KnetModule, otype; o...) =
+    map(_->otype(;o...), params(m))
 
 
 import Knet.update!
@@ -134,9 +134,8 @@ function _populate_recursive(m, list, match_type)
     if isa(m, match_type)
         push!(list, m)
     end
-    # Sort is for deterministic behavior
     if isa(m, KnetModule)
-        for fn in sort(fieldnames(m))
+        for fn in fieldnames(m)
             _populate_recursive(getfield(m, fn), list, match_type)
         end
     elseif isa(m, Array) || isa(m, Tuple)
@@ -144,7 +143,7 @@ function _populate_recursive(m, list, match_type)
             _populate_recursive(l, list, match_type)
         end
     elseif isa(m, Associative)
-        for k in sort(keys(m))
+        for k in keys(m)
             _populate_recursive(m[k], list, match_type)
         end
     else
@@ -156,19 +155,14 @@ end
 """
 `params(m::KnetModule; kwargs)` returns parameters of the KnetModule m.
 These include any value of type `Param` stored in fields, sub-modules, 
-dictionaries, arrays and tuples. 
-
-# Keywords
-
-   `sorted=false`: If true, parameters are returned sorted based on
-their locations in the context
+dictionaries, arrays and tuples. Parameters are sorted based on their
+locations in their respective context, so they are always returned in
+the same order.
 """
-function params(m::KnetModule; sorted=false)
+function params(m::KnetModule)
     res = []
     _populate_recursive(m, res, Param)
-    if sorted
-        sort!(res; lt=(r1, r2)->r1.index < r2.index)
-    end
+    sort!(res; lt=(r1, r2)->r1.index < r2.index)
     return res
 end
 
@@ -178,12 +172,11 @@ end
 These include any value of type `Param` stored in fields, sub-modules, 
 dictionaries, arrays and tuples. 
 """
-function submodules(m::KnetModule)
+function modules(m::KnetModule)
     res = []
     _populate_recursive(m, res, KnetModule)
     return res
 end
-
 
 """
 `gpu!(m::KnetModule)` transfers all parameters in `m` to supported
@@ -219,7 +212,7 @@ which may effect the execution mode in some modules. It also make `take_grad`
 field of parameters true, which make them included in the training process.
 """
 function training!(m::KnetModule)
-    for sm in submodules(m)
+    for sm in modules(m)
         if :train in fieldnames(m)
             m.train = true
         end
@@ -238,7 +231,7 @@ is done by unrecording the variables during training, so that particular modules
 weights can be treated as constants by the AutoGrad. 
 """
 function testing!(m::KnetModule)
-    for sm in submodules(m)
+    for sm in modules(m)
         if :train in fieldnames(m)
             m.train = false
         end
@@ -297,8 +290,8 @@ If `clone` is `true`, the buffers are copied.
 """
 function switch_clean_ctx!(m::KnetModule; reset_old=true, clone=false)
     new = ParamCtx()
-    for p in params(m; sorted=true)
-        p.index = length(push!(new, aval(p)))
+    for p in params(m)
+        p.index = length(push!(new, clone ? copy(aval(p)) : aval(p)))
     end
     if reset_old
         reset_ctx!()
@@ -311,7 +304,7 @@ end
 function is_ctx_clean(m::KnetModule)
     ps = Set{Int}(map(x->x.index, params(m)))
     as = Set{Int}(1:length(active_ctx()))
-    return length(setdiff(as,ps)) == 0
+    return length(setdiff(as, ps)) == 0
 end
 
 function ctx_dict(m::KnetModule)
@@ -371,12 +364,3 @@ function load_module(filename::String; ctx_switch=false)
     end
     return model
 end
-
-# assumes indices are consistent, to be used during training
-#=function restore_module!(filename::String, target::KnetModule)
-    assert_jld()
-    cdict = JLD.load(filename)["ctx_dict"]
-    for p in params(target)
-        copy!(aval(p), cdict[p.index])
-    end
-end=#
