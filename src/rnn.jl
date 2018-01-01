@@ -42,7 +42,6 @@ or tuple of (hidden_state, cell_state), if the module has any cell states.
                             o...)
            @assert (y || hy || cy) "You must return something"
            r, w = rnninit(input, hidden; o..., rnnType=$(rnnType))
-           o = filter(x->!isa(x[2], Function), o)
            return $(RNNModule)(Param(w), r, y, hy, cy)
       end
      end))
