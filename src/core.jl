@@ -114,7 +114,7 @@ otype specifies a Knet optimizer and `o...` is its options. `sorted` is a boolea
 passed to the params.
 """
 optimizers(m::KnetModule, otype; o...) =
-    map(_->otype(;o...), params(m))
+    Array{Any, 1}(map(_->otype(;o...), params(m)))
 
 
 import Knet.update!
