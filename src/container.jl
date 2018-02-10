@@ -47,7 +47,7 @@ Identical to push!(s.layers, m...)
 """
 add!(s::Sequential, m...) = push!(s.layers, m...)
 
-function forward(ctx, s::Sequential, x)
+function (s::Sequential)(ctx, x)#forward(ctx, s::Sequential, x)
     for l in s.layers
         x = isa(l, Function) ? l(x) : @mc l(x)
     end

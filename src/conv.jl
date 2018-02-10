@@ -3,7 +3,7 @@
 to `mode=mode` in a module.
 """
 function conv_mode!(m::KnetModule, mode::Int)
-    for m in submodules(m)
+    for m in modules(m)
         if isa(m, Conv)
             m.opt = filter(x->x[1]!==:mode, m.opt)
             push!(m.opt, (:mode, mode))
@@ -61,9 +61,9 @@ function Conv(r::Int, c::Int, i::Int, o::Int;
     return Conv(w, b, opt)
 end
 
-function forward(ctx, c::Conv, x)
+function (c::Conv)(ctx, x; o...) #forward(ctx, c::Conv, x)
     o = conv4(val(ctx, c.w), x;
-              c.opt...)
+              c.opt..., o...)
     if c.b !== nothing
         o = o .+ val(ctx, c.b)
     end

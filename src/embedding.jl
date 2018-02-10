@@ -30,7 +30,7 @@ EmbeddingMul(esize::Int, vsize::Int; winit=randn, dtype=Float32) =
     EmbeddingMul(Linear(esize, vsize;
                         winit=winit, dtype=Float32, bias=false))
 
-function forward(ctx, e::EmbeddingMul, x)
+function (e::EmbeddingMul)(ctx, x)#forward(ctx, e::EmbeddingMul, x)
     if ndims(x) == 3
         dims = size(x, 2, 3)
         x = reshape(x, size(x,1), size(x, 2) * size(x, 3))
@@ -70,7 +70,7 @@ EmbeddingLookup(emb::Int, vocab::Int; dtype=Float32, winit=randn) =
     EmbeddingLookup(Param(winit(dtype, emb, vocab)))
 
 
-function forward(ctx, el::EmbeddingLookup, indices)
+function (el::EmbeddingLookup)(ctx, indices)#forward(ctx, el::EmbeddingLookup, indices)
     w = val(ctx, el.w)
     emb = w[:, indices[:]]
     if ndims(indices) > 1

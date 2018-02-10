@@ -11,7 +11,8 @@ for (Act, fn) in zip([:ReLU, :Sigmoid, :Tanh], [:relu, :sigm, :tanh])
     eval(:(
         begin
            type $(Act) <: Activation; ;end
-           forward(ctx, m::$(Act), x) = $(fn).(x)
+           (m::$(Act))(ctx, x) = $(fn).(x)
+           #forward(ctx, m::$(Act), x) = $(fn).(x)
         end
     ))
 end
@@ -24,7 +25,7 @@ type MaxPool <: Pool; opt; end
 
 MaxPool(;o...) = MaxPool(o)
 
-forward(ctx, m::MaxPool, x) = pool(x; m.opt..., mode=0)
+(m::MaxPool)(ctx, x) = pool(x; m.opt..., mode=0)
 
 
 type AvgPool <: Pool
@@ -34,7 +35,7 @@ end
 
 AvgPool(;include_pad=true, o...) = AvgPool(o, include_pad)
 
-forward(ctx, m::AvgPool, x) =
+(m::AvgPool)(ctx, x) =
     pool(x; m.opt..., mode=1+Int(m.include_pad))
 
 
@@ -46,6 +47,6 @@ end
 
 Dropout(pdrop; train=nothing) = Dropout(p, train)
 
-forward(ctx, d::Dropout, x) =
+(d::Dropout)(ctx, x) =
     isa(d.train, Bool) ? dropout(x, d.p; training=d.train) : dropout(x, d.p)
 

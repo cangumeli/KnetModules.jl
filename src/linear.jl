@@ -25,6 +25,7 @@ type Linear <: KnetModule
     b::Union{Param, Void}
 end
 
+
 function Linear(output::Int, input::Int;
                 bias=true,
                 winit=xavier,
@@ -35,7 +36,8 @@ function Linear(output::Int, input::Int;
     return Linear(w, b)
 end
 
-function forward(ctx, l::Linear, x)
+#function forward(ctx, l::Linear, x)
+function (l::Linear)(ctx, x)
     if ndims(x) > 2;  x = mat(x); end
     o = val(ctx, l.w) * x
     if l.b !== nothing

@@ -48,7 +48,7 @@ function BatchNorm(input::Int;
     return BatchNorm(w, moments, o, train, remove_initfns)
 end
 
-function forward(ctx, bn::BatchNorm, x)
+function (bn::BatchNorm)(ctx, x)
     o = batchnorm(x, bn.moments, val(ctx, bn.w);
                   bn.opt..., training=bn.train)
     if bn.remove_initfns

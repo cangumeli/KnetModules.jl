@@ -5,7 +5,7 @@ using Knet
 include("core.jl")
 export
     # Ctx
-    ParamCtx, active_ctx, switch_ctx!, default_ctx, reset_ctx!,
+    ParamCtx, active_ctx, switch_ctx!, default_ctx, reset_ctx!, actx,
     # Param
     Param, aval, val, setval!,
     # KnetModule

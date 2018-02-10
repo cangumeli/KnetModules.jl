@@ -26,6 +26,11 @@ let
     reset_ctx!()::ParamCtx = (active=ParamCtx())
 end
 
+"""
+Shorthand form of `active_ctx()`
+"""
+actx = active_ctx()
+
 """`Param` stores an address to the parameters value.
 Trainable arrays should be stored as `Param` inside modules.
 User is responsible to keep track of `ParamCtx` object the `Param`
@@ -80,10 +85,10 @@ Recorded parameters are lived in `active_ctx`.
     `loss`: A function of the form `(ypred, ygold)->scalar_loss`.
 """
 function grad(m::KnetModule, loss::Function)
-    _predict(w, x...) = forward(w, m, x...)
-    _loss(w, args...) = loss(_predict(w, args[1:end-1]...), args[end])
+    _predict(w, x...; o...) = m(w, x...; o...)
+    _loss(w, args...; kwargs...) = loss(_predict(w, args[1:end-1]...), args[end]; kwargs...)
     lossgrad = grad(_loss)
-    return (args...)->lossgrad(active_ctx(), args...)
+    return (args...; kwargs...)->lossgrad(active_ctx(), args...; kwargs...)
 end
 
 import AutoGrad.gradloss
@@ -92,10 +97,10 @@ import AutoGrad.gradloss
 Same as `grad`, with only difference of returning the loss
 """
 function gradloss(m::KnetModule, loss::Function)
-    _predict(w, x...) = forward(w, m, x...)
-    _loss(w, args...) = loss(_predict(w, args[1:end-1]...), args[end])
+    _predict(w, x...; o...) = m(w, x...; o...)
+    _loss(w, args...; kwargs...) = loss(_predict(w, args[1:end-1]...), args[end]; kwargs...)
     lossgrad = gradloss(_loss)
-    return (args...)->lossgrad(active_ctx(), args...)
+    return (args...; kwargs...)->lossgrad(active_ctx(), args...; kwargs...)
 end
 
 """
@@ -303,10 +308,17 @@ macro run(expr)
     return expr
 end
 
-
+# Legacy
 forward(ctx, m::KnetModule, args...) =
-    error("Forward is not implemented for abstract types ",
-          "and/or type ", typeof(m))
+    m(ctx, args...)
+    #=error("This forward signature is not implemented",
+          "for abstract types and/or type ", typeof(m))=#
+
+
+#=macro callable(Module, fn=forward)
+    esc(:((m::$(Module))(ctx, args...; kwargs...) =
+          $(fn)(ctx, m, args...; kwargs...)))
+end=#
 
 
 """
