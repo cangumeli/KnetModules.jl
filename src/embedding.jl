@@ -47,21 +47,20 @@ end
 `EmbeddingLookup`: Basic linear embedding layer using index access.
 
 # Constructors
-    `EmbeddingLookup(esize::Int, vsize::Int; train)`
+    `EmbeddingLookup(esize::Int, vsize::Int; dtype=Float32, winit=randn)`
     esize is the embedding size, 
     vsize is the vocabulary size
-
-train is a boolean, determines whether or not to train the embedding
 
 # Fields
     `w`: Embedding vector
     
 
 # Forward execution
-    `forward(ctx, e::EmbeddingLookup, indices::Array{Int,1})
+    `forward(ctx, e::EmbeddingLookup, indices::Array{Int})
     `@mc e(indices)`
     `@run e(indices)`
-    
+   
+  output size will be [esize, size(indices)...]
 """
 type EmbeddingLookup <: Embedding
     w::Param
@@ -71,7 +70,7 @@ EmbeddingLookup(emb::Int, vocab::Int; dtype=Float32, winit=randn) =
     EmbeddingLookup(Param(winit(dtype, emb, vocab)))
 
 
-function forward(ctx, el::EmbeddingLookup, indices::Array{Int})
+function forward(ctx, el::EmbeddingLookup, indices)
     w = val(ctx, el.w)
     emb = w[:, indices[:]]
     if ndims(indices) > 1

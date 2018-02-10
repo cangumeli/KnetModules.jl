@@ -10,6 +10,7 @@ export
     Param, aval, val, setval!,
     # KnetModule
     KnetModule, getgrad, params, modules,
+    convert_params!, convert_buffers!,
     gpu!, cpu!, training!, testing!,
     forward, @mc, @run,
     switch_clean_ctx!, is_ctx_clean,

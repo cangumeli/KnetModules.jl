@@ -49,14 +49,6 @@ function BatchNorm(input::Int;
 end
 
 function forward(ctx, bn::BatchNorm, x)
-    # TODO: Whole moments stuff should be added to Knet
-    tx = typeof(getval(x))
-    if bn.moments.mean !== nothing && typeof(bn.moments.mean) !== tx
-        bn.moments.mean = tx(bn.moments.mean)
-    end
-    if bn.moments.var !== nothing && typeof(bn.moments.var) !== tx
-        bn.moments.var = tx(bn.moments.var)
-    end
     o = batchnorm(x, bn.moments, val(ctx, bn.w);
                   bn.opt..., training=bn.train)
     if bn.remove_initfns
@@ -64,4 +56,14 @@ function forward(ctx, bn::BatchNorm, x)
         bn.moments.varinit  = nothing
     end
     return o
+end
+
+# Transform bn state
+function convert_buffers!(bn::BatchNorm, atype)
+    if bn.moments.mean !== nothing
+        bn.moments.mean = atype(bn.moments.mean)
+    end
+    if bn.moments.var !== nothing
+        bn.moments.var = atype(bn.moments.var)
+    end
 end

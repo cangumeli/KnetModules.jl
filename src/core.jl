@@ -2,7 +2,6 @@
 This file contains ParamCtx, Param and KnetModule abstractions.
 =#
 
-
 """Data structure used to store parameters. Currently, it is a 1d Any array"""
 const ParamCtx = Array{Any, 1}
 
@@ -54,18 +53,18 @@ val(ctx, p::Union{Param, Void}) =
 
 """
 `aval(p::Param)` returns value of p in the current `active_ctx()`. 
-It may stop differentiation when used.
+It will stop differentiation when used inside forward funtions.
 """
 aval(p::Param) = val(active_ctx(), p)
 
 
 """
-`setval!(p::Param, w; ctx=active_ctx())` sets the value of p to w in ctx.
+`setval!(p::Param, w; ctx=active_ctx())` sets the value of `p` to `w` in `ctx`.
 """
 setval!(p::Param, w; ctx=active_ctx()) = (ctx[p.index] = w)
 
 
-"""`KnetModule` is an abstract type inherited by other modules."""
+"""`KnetModule` is the abstract type inherited by other modules."""
 abstract type KnetModule end
 
 import AutoGrad.grad
@@ -76,7 +75,7 @@ Recorded parameters are lived in `active_ctx`.
 
  # Arguments
 
-    `m`: A regular knet module
+    `m`: A KnetModule instance
 
     `loss`: A function of the form `(ypred, ygold)->scalar_loss`.
 """
@@ -109,9 +108,9 @@ getgrad(p::Param, grads) = grads[p.index]
 
 import Knet.optimizers
 
-"""`optimizers(m::KnetModule, otype;o...)` creates a group of optimizers. 
-otype specifies a Knet optimizer and `o...` is its options. `sorted` is a boolean
-passed to the params.
+"""`optimizers(m::KnetModule, otype;o...)` 
+Creates a group of optimizers that correspond to parameters in module m. 
+otype specifies a Knet optimizer and `o...` is its options.
 """
 optimizers(m::KnetModule, otype; o...) =
     Array{Any, 1}(map(_->otype(;o...), params(m)))
@@ -119,9 +118,10 @@ optimizers(m::KnetModule, otype; o...) =
 
 import Knet.update!
 """
-`update!(m::KnetModule, grads, optims)`: Apply optimizers to grads
-one by one. `optims` should have returned by
-`KnetModules.optimizers`.
+`update!(m::KnetModule, grads, optims)`
+
+Applies optimizers to parameters of `m`, using gradients stored in `grads`.
+`optims` should have returned by `KnetModules.optimizers` for consistent behaviour.
 """
 function update!(m::KnetModule, grads, optims)
     for (p, o) in zip(params(m), optims)
@@ -179,18 +179,44 @@ function modules(m::KnetModule)
 end
 
 """
+`convert_buffers!(m::KnetModule, atype)` 
+Creates a method of this function to convert non-parameter 
+state to `atype`. 
+You may create a method of this function to change cpu! and
+gpu! behaviour of a particular module type.
+"""
+function convert_buffers!(m::KnetModule, atype)
+    nothing
+end
+
+"""
+`convert_params!(m::KnetModule, atype)` 
+Creates a method of this function to convert parameters 
+to `atype`.
+You may create a method of this function to change `cpu!` and
+`gpu!` behaviour of a particular module type.
+"""
+function convert_params!(m::KnetModule, atype)
+    for p in params(m)
+        setval!(p, atype(aval(p)))
+    end
+end
+
+
+"""
 `gpu!(m::KnetModule)` transfers all parameters in `m` to supported
 gpu devices, which is identical to converting their valus to `KnetArray`.
-If no gpu is avaliable, a warning is given and transfer is ignored without
-any error thrown.
+If no gpu is avaliable, a warning is raised and transfer is ignored without
+any error.
 """
 function gpu!(m::KnetModule)
     if gpu() < 0
         warn("Gpu transfer is ignored, no available gpu")
         return m
     end
-    for p in params(m)
-        setval!(p, KnetArray(aval(p)))
+    for sm in modules(m)
+        convert_params!(sm, ka)
+        convert_buffers!(sm, ka)
     end
     return m
 end
@@ -199,8 +225,9 @@ end
 """`cpu!(m::KnetModule)` transfers all parameters in `m` cpu, 
 which is identical to converting their values to `Array`"""
 function cpu!(m::KnetModule)
-    for p in params(m)
-        setval!(p, Array(aval(p)))
+    for sm in modules(m)
+        convert_params!(sm, Array)
+        convert_buffers!(sm, Array)
     end
     return m
 end
@@ -333,12 +360,12 @@ else
     JLD = nothing
 end
 
-@inline assert_jld() =
-    @assert (JLD !== nothing) "Install JLD for using this function"
+@inline assert_jld(fnname="this") =
+    @assert (JLD !== nothing) "Install JLD for using $fname function"
 
 function save_module(filename::String, m::KnetModule,
                      other_state::Dict=Dict())
-    assert_jld()
+    assert_jld("save_module")
     args = ["model", m, "ctx_dict", ctx_dict(m)]
     for k in keys(other_state)
         push!(args, k, other_state[k])
@@ -347,7 +374,7 @@ function save_module(filename::String, m::KnetModule,
 end
 
 function load_module(filename::String; ctx_switch=false)
-    assert_jld()
+    assert_jld("load_module")
     loaded = JLD.load(filename)
     model = loaded["model"]
     cdict = loaded["ctx_dict"]
