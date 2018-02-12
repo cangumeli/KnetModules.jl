@@ -10,8 +10,9 @@ const ParamCtx = Array{Any, 1}
 let
     global active_ctx, switch_ctx!, default_ctx, reset_ctx!
     
-    default = ParamCtx()
-    active = default
+    #=default = ParamCtx()
+    active = default=#
+    active = ParamCtx()
     
     """`active_ctx()::ParamCtx` returns the context in use"""
     active_ctx()::ParamCtx = active
@@ -19,8 +20,8 @@ let
     """`switch_ctx!(new)::ParamCtx` switches to a new context and returns it"""
     switch_ctx!(new::ParamCtx)::ParamCtx = (active=new)
 
-    """`default_ctx()::ParamCtx` returns the default context provided by the system"""
-    default_ctx()::ParamCtx = default
+    #="""`default_ctx()::ParamCtx` returns the default context provided by the system"""
+    default_ctx()::ParamCtx = default=#
 
     """`reset_ctx!()::ParamCtx` removes everything from the context"""
     reset_ctx!()::ParamCtx = (active=ParamCtx())
@@ -29,7 +30,7 @@ end
 """
 Shorthand form of `active_ctx()`
 """
-actx = active_ctx()
+actx() = active_ctx()
 
 """`Param` stores an address to the parameters value.
 Trainable arrays should be stored as `Param` inside modules.
@@ -245,8 +246,8 @@ field of parameters true, which make them included in the training process.
 """
 function training!(m::KnetModule)
     for sm in modules(m)
-        if :train in fieldnames(m)
-            m.train = true
+        if :train in fieldnames(sm)
+            sm.train = true
         end
         for p in params(sm)
             p.take_grad = true
@@ -259,7 +260,7 @@ end
 """
 `testing!(m::KnetModule)` makes the fields called `train` `false` if exists, 
 and freezes the parameters so that gradient is not taken w.r.t them. This
-is done by unrecording the variables during training, so that particular modules`
+is done by unrecording the parameters during training, so that particular modules`
 weights can be treated as constants by the AutoGrad. 
 """
 function testing!(m::KnetModule)
@@ -267,7 +268,7 @@ function testing!(m::KnetModule)
         if :train in fieldnames(m)
             m.train = false
         end
-        for p in params(m)
+        for p in params(sm)
             p.take_grad = false
         end
     end
@@ -276,7 +277,7 @@ end
 
 # Macros for simple module operations
 # TODO: support kwargs
-"""
+#="""
 `@mc expr` Converts the expression `m(a...)` to `forward(ctx, m, a...)`. 
 `ctx` should come from the upper scope.
 
@@ -310,7 +311,7 @@ end
 
 # Legacy
 forward(ctx, m::KnetModule, args...) =
-    m(ctx, args...)
+    m(ctx, args...)=#
     #=error("This forward signature is not implemented",
           "for abstract types and/or type ", typeof(m))=#
 
@@ -322,18 +323,14 @@ end=#
 
 
 """
-`switch_clean_ctx!(m::KnetModule; reset_old=true, clone=false)` 
-Switches to a new ctx where only `m` lives.
-If `reset_old` is `true`, old ctx is cleaned up for saving memory. 
-If `clone` is `true`, the buffers are copied.
+`clean_ctx!(m::KnetModule)` 
+Switches to a new ctx where only parameters of `m` live.
 """
-function switch_clean_ctx!(m::KnetModule; reset_old=true, clone=false)
+function clean_ctx!(m::KnetModule)
+    is_ctx_clean(m) && return m
     new = ParamCtx()
     for p in params(m)
-        p.index = length(push!(new, clone ? copy(aval(p)) : aval(p)))
-    end
-    if reset_old
-        reset_ctx!()
+        p.index = length(push!(new, aval(p)))
     end
     switch_ctx!(new)
     return m

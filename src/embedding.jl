@@ -30,14 +30,14 @@ EmbeddingMul(esize::Int, vsize::Int; winit=randn, dtype=Float32) =
     EmbeddingMul(Linear(esize, vsize;
                         winit=winit, dtype=Float32, bias=false))
 
-function (e::EmbeddingMul)(ctx, x)#forward(ctx, e::EmbeddingMul, x)
+function (e::EmbeddingMul)(ctx, x)
     if ndims(x) == 3
         dims = size(x, 2, 3)
         x = reshape(x, size(x,1), size(x, 2) * size(x, 3))
     else
         dims = size(x, 2)
     end
-    emb = @mc e.l(x)
+    emb = e.l(ctx, x)
     return reshape(emb, (size(emb,1), dims...))
 end
 

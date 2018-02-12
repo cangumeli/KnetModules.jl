@@ -47,9 +47,13 @@ Identical to push!(s.layers, m...)
 """
 add!(s::Sequential, m...) = push!(s.layers, m...)
 
-function (s::Sequential)(ctx, x)#forward(ctx, s::Sequential, x)
+function (s::Sequential)(ctx, x)
     for l in s.layers
-        x = isa(l, Function) ? l(x) : @mc l(x)
+        if isa(l, Function) || isa(l, FnModule)
+            x = l(x)
+        else
+            x = l(ctx, x)
+        end
     end
     return x
 end

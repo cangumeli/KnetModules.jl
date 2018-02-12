@@ -8,7 +8,7 @@ import Knet.accuracy
 wrapper over `Knet.nll`.
 """
 nll(model::KnetModule, data::MB; o...) =
-    nll(model, data, (m, x)->(@run m(x)); o...)
+    nll(model, data, (m, x)->m(actx(), x); o...)
 
 
 """
@@ -16,5 +16,5 @@ nll(model::KnetModule, data::MB; o...) =
 wrapper over `Knet.accuracy`.
 """
 accuracy(model::KnetModule, data::MB; o...) =
-    accuracy(model, data, (m, x)->(@run m(x)); o...)
+    accuracy(model, data, (m, x)->m(actx(), x); o...)
 
