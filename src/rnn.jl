@@ -14,6 +14,7 @@ for (RNNModule, rnnType) in zip([:RNNRelu, :RNNTanh, :LSTM, :GRU],
            y::Bool
            hy::Bool
            cy::Bool
+           _opt
       end
 
      rname = split(string($(RNNModule)), ".")[end]
@@ -38,8 +39,9 @@ where `o...` is runtime kwargs of `Knet.rnnforw`
                             y=true, hy=false, cy=false,
                             o...)
            @assert (y || hy || cy) "You must return something"
-           r, w = rnninit(input, hidden; o..., rnnType=$(rnnType))
-           return $(RNNModule)(Param(w), r, y, hy, cy)
+           r, w = rnninit(input, hidden;
+                          usegpu=false, rnnType=$(rnnType),o...)
+           return $(RNNModule)(Param(w), r, y, hy, cy, o)
       end
 
       (rnn::$(RNNModule))(ctx, x, hx=nothing, cx=nothing; o...) =
@@ -60,4 +62,12 @@ function _forw(ctx, rnn::AbstractRNN, x, hx, cx; o...)
     gets = rnn.hy || rnn.cy
     next_state = (rnn.cy && cy !== nothing) ? (hy, cy) : hy
     return (gets && rnn.y) ? (y, next_state...) : gets ? next_state : y
+end
+
+function convert_params!(rnn::AbstractRNN, atype)
+    r,w = rnninit(rnn.cfg.inputSize, rnn.cfg.hiddenSize;
+                  usegpu=atype<:KnetArray,
+                  rnn._opt...)
+    rnn.cfg = r
+    setval!(rnn.w, w) 
 end

@@ -145,8 +145,12 @@ function _populate_recursive(m, list, match_type)
             _populate_recursive(getfield(m, fn), list, match_type)
         end
     elseif isa(m, Array) || isa(m, Tuple)
-        for l in m
-            _populate_recursive(l, list, match_type)
+        etype = eltype(m)
+        # TODO: expand this filter
+        if ~(etype <: Number || etype<:AbstractString)
+            for l in m
+                _populate_recursive(l, list, match_type)
+            end
         end
     elseif isa(m, Associative)
         for k in keys(m)
@@ -168,8 +172,16 @@ the same order.
 function params(m::KnetModule)
     res = []
     _populate_recursive(m, res, Param)
+    # For determinism (not solely for duplicate removal)
     sort!(res; lt=(r1, r2)->r1.index < r2.index)
-    return res
+    # Remove duplicates from the list
+    #return res
+    isempty(res) && return res
+    res2 = Any[res[1]]
+    for i = 2:length(res)
+        (res[i-1].index != res[i].index) && push!(res2, res[i])
+    end
+    return res2
 end
 
 
@@ -179,9 +191,9 @@ These include any value of type `Param` stored in fields, sub-modules,
 dictionaries, arrays and tuples. 
 """
 function modules(m::KnetModule)
-    res = []
+    res = Set{KnetModule}()
     _populate_recursive(m, res, KnetModule)
-    return res
+    return Any[r for r in res]
 end
 
 """
