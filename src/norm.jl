@@ -44,12 +44,13 @@ function BatchNorm(input::Int;
                    moments=bnmoments(),
                    remove_initfns=true, #serialization hack (should go to Knet?)
                    o...)
-    w = Param(bnparams(dtype, input))
+    w = affine ? Param(bnparams(dtype, input)) : nothing
     return BatchNorm(w, moments, o, train, remove_initfns)
 end
 
 function (bn::BatchNorm)(ctx, x)
-    o = batchnorm(x, bn.moments, val(ctx, bn.w);
+    w = bn.w == nothing ? nothing : val(ctx, bn.w)
+    o = batchnorm(x, bn.moments, w;
                   bn.opt..., training=bn.train)
     if bn.remove_initfns
         bn.moments.meaninit = nothing
