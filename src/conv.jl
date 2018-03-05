@@ -15,8 +15,8 @@ end
 """
 `kaiming(et, h, w, i, o)` Default initialization for conv
 """
-kaiming(et, h, w, i, o) =
-    et(sqrt(2 / (w * h * o))) .* randn(et, h, w, i, o)
+kaiming(et, dims...) =
+    et(sqrt(2 / prod(dims[1:end-1]))) .* randn(et, dims...)
 
 
 """
@@ -40,9 +40,7 @@ kaiming(et, h, w, i, o) =
     `opt`: kwargs of `conv4`, provided in initialization
 
 # Forward execution
-    `forward(ctx, c::Conv, x)`
-    `@mc c(x)`
-    `@run c(x)`
+    `c(ctx, x)
 """
 type Conv <: KnetModule
     w::Param
@@ -50,14 +48,19 @@ type Conv <: KnetModule
     opt
 end
 
-function Conv(r::Int, c::Int, i::Int, o::Int;
+function Conv(dims...;
               winit=kaiming,
               binit=zeros,
               bias=true,
               dtype=Float32,
               opt...)
-    w = Param(winit(dtype, r, c, i, o))
-    b =  bias ? Param(binit(dtype, 1, 1, o, 1)) : nothing
+    w = Param(winit(dtype, dims...))
+    b = nothing
+    if bias
+        b = Param(binit(dtype, 
+                        [1 for i=1:length(dims)-2]..., 
+                        dims[end], 1))
+    end
     return Conv(w, b, opt)
 end
 
