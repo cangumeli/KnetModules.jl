@@ -87,7 +87,8 @@ Recorded parameters are lived in `active_ctx`.
 """
 function grad(m::KnetModule, loss::Function)
     _predict(w, x...; o...) = m(w, x...; o...)
-    _loss(w, args...; kwargs...) = loss(_predict(w, args[1:end-1]...), args[end]; kwargs...)
+    _loss(w, args...; kwargs...) = loss(_predict(w, args[1:end-1]...; kwargs...),
+                                        args[end])
     lossgrad = grad(_loss)
     return (args...; kwargs...)->lossgrad(active_ctx(), args...; kwargs...)
 end
@@ -99,7 +100,8 @@ Same as `grad`, with only difference of returning the loss
 """
 function gradloss(m::KnetModule, loss::Function)
     _predict(w, x...; o...) = m(w, x...; o...)
-    _loss(w, args...; kwargs...) = loss(_predict(w, args[1:end-1]...), args[end]; kwargs...)
+    _loss(w, args...; kwargs...) = loss(_predict(w, args[1:end-1]...; kwargs...),
+                                        args[end])
     lossgrad = gradloss(_loss)
     return (args...; kwargs...)->lossgrad(active_ctx(), args...; kwargs...)
 end
