@@ -69,5 +69,6 @@ function convert_params!(rnn::AbstractRNN, atype)
                   usegpu=atype<:KnetArray,
                   rnn._opt...)
     rnn.cfg = r
-    setval!(rnn.w, w) 
+    copy!(w, aval(rnn.w))
+    setval!(rnn.w, w)
 end
