@@ -47,8 +47,14 @@ type Dropout <: FnModule
     train::Union{Bool, Void}
 end
 
-Dropout(pdrop; train=nothing) = Dropout(pdrop, train)
+Dropout(pdrop; train=true) = Dropout(pdrop, train)
 
-(d::Dropout)(x) =
-    isa(d.train, Bool) ? dropout(x, d.p; training=d.train) : dropout(x, d.p)
+function (d::Dropout)(x)
+    train = d.train
+    if ~isa(train, Bool)
+        train = isa(x, AutoGrad.Rec)
+    end
+    p = train ? d.p : 0
+    return dropout(x, p)
+end
 

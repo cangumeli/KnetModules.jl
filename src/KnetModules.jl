@@ -1,6 +1,6 @@
 module KnetModules
 
-using Knet
+using Knet, AutoGrad
 
 include("core.jl")
 export

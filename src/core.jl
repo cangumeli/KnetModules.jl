@@ -279,8 +279,8 @@ weights can be treated as constants by the AutoGrad.
 """
 function testing!(m::KnetModule)
     for sm in modules(m)
-        if :train in fieldnames(m)
-            m.train = false
+        if :train in fieldnames(sm)
+            sm.train = false
         end
         for p in params(sm)
             p.take_grad = false
